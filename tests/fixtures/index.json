@@ -1,0 +1,74 @@
+{
+  "samples": [
+    {"file": "python-traceback/01_nameerror.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
+    {"file": "python-traceback/02_nameerror_variant.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
+    {"file": "python-traceback/03_keyerror_311.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
+    {"file": "python-traceback/04_chain.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
+    {"file": "python-traceback/05_pytest.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
+    {"file": "python-traceback/06_syntaxerror.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
+
+    {"file": "cmake/01_missing_package.txt", "tool": "cmake", "fuzzy": false, "min_errors": 1},
+    {"file": "cmake/02_missing_package_variant.txt", "tool": "cmake", "fuzzy": false, "min_errors": 1},
+    {"file": "cmake/03_target_not_found.txt", "tool": "cmake", "fuzzy": false, "min_errors": 1},
+    {"file": "cmake/04_cannot_find_source.txt", "tool": "cmake", "fuzzy": false, "min_errors": 1},
+    {"file": "cmake/05_generate_failed.txt", "tool": "cmake", "fuzzy": false, "min_errors": 1},
+    {"file": "cmake/06_unknown_argument.txt", "tool": "cmake", "fuzzy": false, "min_errors": 1},
+
+    {"file": "cuda-oom/01_torch_oom.txt", "tool": "cuda-oom", "fuzzy": false, "min_errors": 1, "absent_tools": ["python-traceback"]},
+    {"file": "cuda-oom/02_torch_oom_variant.txt", "tool": "cuda-oom", "fuzzy": false, "min_errors": 1, "absent_tools": ["python-traceback"]},
+    {"file": "cuda-oom/03_cuda_malloc.txt", "tool": "cuda-oom", "fuzzy": false, "min_errors": 1},
+    {"file": "cuda-oom/04_tensorflow_oom.txt", "tool": "cuda-oom", "fuzzy": false, "min_errors": 1},
+    {"file": "cuda-oom/05_standalone_log.txt", "tool": "cuda-oom", "fuzzy": false, "min_errors": 1},
+
+    {"file": "msvc/01_c2065.txt", "tool": "msvc", "fuzzy": false, "min_errors": 1},
+    {"file": "msvc/02_c2065_variant.txt", "tool": "msvc", "fuzzy": false, "min_errors": 1},
+    {"file": "msvc/03_c1083.txt", "tool": "msvc", "fuzzy": false, "min_errors": 1},
+    {"file": "msvc/04_lnk2019.txt", "tool": "msvc", "fuzzy": false, "min_errors": 1},
+    {"file": "msvc/05_lnk1104.txt", "tool": "msvc", "fuzzy": false, "min_errors": 1},
+    {"file": "msvc/06_c2664.txt", "tool": "msvc", "fuzzy": false, "min_errors": 1},
+
+    {"file": "gcc-clang/01_gcc_undeclared.txt", "tool": "gcc-clang", "fuzzy": false, "min_errors": 1},
+    {"file": "gcc-clang/02_gcc_undeclared_variant.txt", "tool": "gcc-clang", "fuzzy": false, "min_errors": 1},
+    {"file": "gcc-clang/03_clang_undeclared.txt", "tool": "gcc-clang", "fuzzy": false, "min_errors": 1},
+    {"file": "gcc-clang/04_gcc_nofile.txt", "tool": "gcc-clang", "fuzzy": false, "min_errors": 1},
+    {"file": "gcc-clang/05_ld_undefined.txt", "tool": "gcc-clang", "fuzzy": false, "min_errors": 1},
+    {"file": "gcc-clang/06_clang_undeclared_variant.txt", "tool": "gcc-clang", "fuzzy": false, "min_errors": 1},
+
+    {"file": "cargo/01_e0425.txt", "tool": "cargo", "fuzzy": false, "min_errors": 1},
+    {"file": "cargo/02_e0425_variant.txt", "tool": "cargo", "fuzzy": false, "min_errors": 1},
+    {"file": "cargo/03_e0382.txt", "tool": "cargo", "fuzzy": false, "min_errors": 1},
+    {"file": "cargo/04_e0308.txt", "tool": "cargo", "fuzzy": false, "min_errors": 1},
+    {"file": "cargo/05_link_failed.txt", "tool": "msvc", "fuzzy": false, "min_errors": 2},
+    {"file": "cargo/06_version_select.txt", "tool": "cargo", "fuzzy": false, "min_errors": 1},
+
+    {"file": "node/01_typeerror_undefined.txt", "tool": "node", "fuzzy": false, "min_errors": 1},
+    {"file": "node/02_typeerror_variant.txt", "tool": "node", "fuzzy": false, "min_errors": 1},
+    {"file": "node/03_module_not_found.txt", "tool": "node", "fuzzy": false, "min_errors": 1},
+    {"file": "node/04_npm_enoent.txt", "tool": "node", "fuzzy": false, "min_errors": 1},
+    {"file": "node/05_syntaxerror.txt", "tool": "node", "fuzzy": false, "min_errors": 1},
+    {"file": "node/06_referenceerror.txt", "tool": "node", "fuzzy": false, "min_errors": 1},
+
+    {"file": "ninja/01_failed_gcc_inner.txt", "tool": "gcc-clang", "fuzzy": false, "min_errors": 1, "absent_tools": ["ninja"]},
+    {"file": "ninja/02_error_loading.txt", "tool": "ninja", "fuzzy": false, "min_errors": 1},
+    {"file": "ninja/03_failed_custom_tool.txt", "tool": "ninja", "fuzzy": true, "min_errors": 1},
+    {"file": "ninja/04_stopped_only.txt", "tool": null, "min_errors": 0},
+    {"file": "ninja/05_failed_msvc_inner.txt", "tool": "msvc", "fuzzy": false, "min_errors": 1, "absent_tools": ["ninja"]},
+
+    {"file": "generic/01_make_error.txt", "tool": "generic", "fuzzy": false, "min_errors": 1},
+    {"file": "generic/02_pip_version.txt", "tool": "generic", "fuzzy": false, "min_errors": 2},
+    {"file": "generic/03_panic_go.txt", "tool": "generic", "fuzzy": false, "min_errors": 1},
+    {"file": "generic/04_repeat_noise.txt", "tool": "generic", "fuzzy": true, "min_errors": 1},
+    {"file": "generic/05_prefix_ts.txt", "tool": "generic", "fuzzy": false, "min_errors": 1},
+    {"file": "generic/06_collect2_absorbed.txt", "tool": null, "min_errors": 0}
+  ],
+  "same_signature_groups": [
+    ["python-traceback/01_nameerror.txt", "python-traceback/02_nameerror_variant.txt"],
+    ["cmake/01_missing_package.txt", "cmake/02_missing_package_variant.txt"],
+    ["cuda-oom/01_torch_oom.txt", "cuda-oom/02_torch_oom_variant.txt"],
+    ["msvc/01_c2065.txt", "msvc/02_c2065_variant.txt"],
+    ["gcc-clang/01_gcc_undeclared.txt", "gcc-clang/02_gcc_undeclared_variant.txt"],
+    ["gcc-clang/03_clang_undeclared.txt", "gcc-clang/06_clang_undeclared_variant.txt"],
+    ["cargo/01_e0425.txt", "cargo/02_e0425_variant.txt"],
+    ["node/01_typeerror_undefined.txt", "node/02_typeerror_variant.txt"]
+  ]
+}

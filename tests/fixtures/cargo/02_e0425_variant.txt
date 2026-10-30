@@ -1,0 +1,7 @@
+error[E0425]: cannot find value `BUFFER_SIZE` in this scope
+ --> C:\build\demo\src\config.rs:88:9
+  |
+88 |     let cap = BUFFER_SIZE * 2;
+  |               ^^^^^^^^^^^ not found in this scope
+
+error: could not compile `demo` (bin "demo") due to 1 previous error

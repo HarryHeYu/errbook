@@ -1,0 +1,4 @@
+  File "setup.py", line 12
+    def f(:):
+          ^
+SyntaxError: invalid syntax

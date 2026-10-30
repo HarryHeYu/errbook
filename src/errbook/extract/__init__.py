@@ -25,16 +25,24 @@ class Claim:
     tool: str
     normalized: Optional[str]  # None → 用摘录兜底并标 fuzzy
     fuzzy: bool = False
+    absorb: bool = False  # True = 只占坑不记账（无信息量的汇总行）
 
 
 Scanner = Callable[[Sequence[str], Set[int]], Iterable[Claim]]
 
-from . import cmake, generic, python_tb  # noqa: E402
+from . import cargo, cmake, cuda, gcc, generic, msvc, ninja, nodejs, python_tb  # noqa: E402
 
-# 顺序即优先级（M0 先三个；M2 补齐 cuda-oom/msvc/gcc-clang/cargo/node/ninja）
+# 顺序即优先级：越具体的越先认领。cuda-oom 在 python-traceback 之前，
+# 因为 torch 的 OOM traceback 里真正值得记账的是显存那一行。
 _EXTRACTORS: list[tuple[str, Scanner]] = [
+    ("cuda-oom", cuda.scan),
     ("cmake", cmake.scan),
+    ("msvc", msvc.scan),
+    ("gcc-clang", gcc.scan),
+    ("cargo", cargo.scan),
+    ("node", nodejs.scan),
     ("python-traceback", python_tb.scan),
+    ("ninja", ninja.scan),
     ("generic", generic.scan),
 ]
 
@@ -59,8 +67,10 @@ def extract_all(text: str) -> list[Extraction]:
                 continue
             if _overlaps(c.start, c.end, claimed_ranges):
                 continue
-            claims.append(c)
             claimed_ranges.append((c.start, c.end))
+            if c.absorb:
+                continue  # 只占坑不记账
+            claims.append(c)
     claims.sort(key=lambda c: (c.start, c.end))
 
     out: list[Extraction] = []

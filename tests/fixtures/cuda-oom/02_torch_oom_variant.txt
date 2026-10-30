@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "runner.py", line 210, in step
+    out = model(inp)
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 0 has a total capacity of 24.00 GiB of which 512.00 MiB is free.
+Including non-PyTorch memory, this process has 23.50 GiB memory in use.

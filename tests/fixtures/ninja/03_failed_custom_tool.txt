@@ -1,0 +1,4 @@
+FAILED: generated/tables.h
+cmd.exe /C "cd /D E:\proj\gen && codegen.exe --out generated/tables.h"
+codegen.exe: fatal: template 'tables.tpl' not found in search path
+ninja: build stopped: subcommand failed.

@@ -1,0 +1,2 @@
+/usr/bin/ld: main.o: in function `main':
+main.c:(.text+0x24): undefined reference to `gzopen'

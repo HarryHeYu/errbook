@@ -1,0 +1,6 @@
+FAILED: CMakeFiles/demo.dir/src/net.c.o
+C:\msys64\ucrt64\bin\gcc.exe  -DHAVE_CONFIG_H -MD -MT CMakeFiles/demo.dir/src/net.c.o -o CMakeFiles/demo.dir/src/net.c.o -c src/net.c
+src/net.c:57:12: error: 'IPPROTO_SCTP' undeclared (first use in this function); did you mean 'IPPROTO_TCP'?
+   57 |     switch (proto) {
+      |            ^~~~~~~~~~~~
+ninja: build stopped: subcommand failed.

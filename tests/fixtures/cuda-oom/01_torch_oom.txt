@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "train.py", line 88, in <module>
+    loss.backward()
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.50 GiB. GPU 0 has a total capacity of 79.20 GiB of which 1.24 GiB is free.
+Including non-PyTorch memory, this process has 78.00 GiB memory in use.

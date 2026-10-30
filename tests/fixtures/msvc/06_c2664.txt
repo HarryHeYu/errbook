@@ -1,0 +1,1 @@
+1>render.cpp(45): error C2664: 'void Scene::add(const Mesh &)': cannot convert argument 1 from 'Mesh *' to 'const Mesh &'

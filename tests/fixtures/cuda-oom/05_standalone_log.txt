@@ -1,0 +1,2 @@
+Epoch 3:  45%|████▌     | 2345/5200 [08:12<10:03, 4.74it/s, loss=2.31]
+ERROR: torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 384.00 MiB. GPU 0 has a total capacity of 11.00 GiB of which 128.00 MiB is free.

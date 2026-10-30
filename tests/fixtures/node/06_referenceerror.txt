@@ -1,0 +1,3 @@
+ReferenceError: config is not defined
+    at Object.<anonymous> (D:\app\start.js:5:1)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)

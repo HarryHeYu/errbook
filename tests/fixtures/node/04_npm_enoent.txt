@@ -1,0 +1,8 @@
+npm error code ENOENT
+npm error syscall spawn git
+npm error path C:\Users\dev\AppData\Local\npm-cache\_cacache
+npm error errno -4058
+npm error spawn git ENOENT
+
+npm error A complete log of this run can be found in:
+npm error     C:\Users\dev\AppData\Local\npm-cache\_logs\2026-10-31T01-00-00_000Z-debug-0.log

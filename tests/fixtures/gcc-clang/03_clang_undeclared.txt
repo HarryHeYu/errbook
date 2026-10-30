@@ -1,0 +1,4 @@
+shader.c:88:5: error: call to undeclared function 'glCompileShaderEXT'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+shader.c:88:5: note: did you mean 'glCompileShader'?
+/usr/include/GL/gl.h:1297:20: note: 'glCompileShader' declared here
+GLAPI void APIENTRY glCompileShader (GLuint shader);

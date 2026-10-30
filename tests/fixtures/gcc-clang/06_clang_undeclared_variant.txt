@@ -1,0 +1,1 @@
+shader.c:120:5: error: call to undeclared function 'glCompileShaderEXT'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]

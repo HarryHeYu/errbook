@@ -1,0 +1,2 @@
+TypeError: Cannot read properties of undefined (reading 'firstName')
+    at getUserName (file:///D:/app/dist/services/user.js:42:19)

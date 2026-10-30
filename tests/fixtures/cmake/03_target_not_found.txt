@@ -1,0 +1,4 @@
+CMake Error at CMakeLists.txt:15 (add_executable):
+  Target "demo" links to: Threads::Threads but the target file was not
+  found.  Perhaps a find_package() call is missing for an IMPORTED target,
+  or an ALIAS target is missing?

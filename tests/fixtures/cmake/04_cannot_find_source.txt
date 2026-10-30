@@ -1,0 +1,6 @@
+CMake Error at CMakeLists.txt:22 (add_subdirectory):
+  The source directory
+
+    /home/user/proj/ext
+
+  does not contain a CMakeLists.txt file.

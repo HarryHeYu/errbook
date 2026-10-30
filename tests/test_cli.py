@@ -117,3 +117,27 @@ def test_solve_prefix_ambiguous(store_env, tmp_path):
 def test_check_no_stdin_quiet(store_env):
     r = invoke("check")
     assert r.exit_code == 0
+
+
+def test_top_and_forget(store_env, tmp_path):
+    log = tmp_path / "err.log"
+    log.write_text(CMAKE_ERR, encoding="utf-8")
+    invoke("add", "--file", str(log))
+
+    r1 = invoke("top")
+    assert r1.exit_code == 0
+    assert "· sig " in all_out(r1)  # 还没有修法
+
+    sig = re.search(r"sig ([0-9a-f]{12})", all_out(r1)).group(1)
+    invoke("solve", sig, "装 GTest")
+    r2 = invoke("top")
+    assert "✓ sig " in all_out(r2)
+
+    r3 = invoke("forget", sig[:6])
+    assert r3.exit_code == 0
+    assert "已删除" in all_out(r3)
+
+    r4 = invoke("top")
+    assert "错题本还是空的" in all_out(r4)
+    r5 = invoke("search", "GTest")
+    assert "没搜到" in all_out(r5)

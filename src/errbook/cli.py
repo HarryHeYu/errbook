@@ -231,6 +231,37 @@ def show(sig_id: str = typer.Argument(..., help="签名 ID，可只写前缀。"
             typer.echo(f"    | {ln}")
 
 
+@app.command("top")
+def top(
+    all_: bool = typer.Option(False, "--all", help="跨项目排行。"),
+    limit: int = typer.Option(10, "--limit", "-n", min=1, help="最多几条。"),
+) -> None:
+    """高频错误排行（默认当前项目）。✓ = 已有修法，· = 还没有。"""
+    rows = Store().top(project=None if all_ else detect_project(), limit=limit)
+    if not rows:
+        typer.echo("errbook: 错题本还是空的。")
+        return
+    for r in rows:
+        mark = "✓" if r["fix_count"] else "·"
+        typer.echo(
+            f"{r['scope_count']:>4}× {mark} sig {r['id']} · {r['tool']}"
+            f" · 最近 {fmt_ts(r['last_seen'])}"
+        )
+        typer.echo(f"       {r['normalized'][:100]}")
+
+
+@app.command("forget")
+def forget(sig_id: str = typer.Argument(..., help="签名 ID，可只写前缀。")) -> None:
+    """删除一个签名（连同出现记录与修法）。错入库也要能出库。"""
+    store = Store()
+    sig = _resolve_sig(store, sig_id)
+    store.forget(sig["id"])
+    typer.echo(
+        f"errbook: 已删除 sig {sig['id']}（{sig['tool']}，出现 {sig['count']} 次）"
+        "及其修法与出现记录。"
+    )
+
+
 def main() -> None:
     app()
 

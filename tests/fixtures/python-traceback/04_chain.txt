@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "a.py", line 5, in load
+    import config
+ImportError: No module named config
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "a.py", line 3, in <module>
+    load()
+RuntimeError: config missing

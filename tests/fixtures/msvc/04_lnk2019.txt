@@ -1,0 +1,1 @@
+foo.obj : error LNK2019: unresolved external symbol "void __cdecl render(class Frame *)" (?render@@YAXPEAVFrame@@@Z) referenced in function main

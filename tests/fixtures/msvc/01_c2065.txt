@@ -1,0 +1,1 @@
+main.cpp(12): error C2065: 'cout': undeclared identifier

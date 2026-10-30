@@ -1,0 +1,4 @@
+error: linking with `link.exe` failed: exit status: 1181
+
+  = note: "link.exe /NOLOGO /OUT:demo.exe demo.main.obj"
+  = note: LINK : fatal error LNK1181: cannot open input file 'foo.lib'

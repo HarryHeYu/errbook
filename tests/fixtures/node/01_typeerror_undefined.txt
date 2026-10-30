@@ -1,0 +1,4 @@
+TypeError: Cannot read properties of undefined (reading 'firstName')
+    at getUserName (/app/services/user.js:42:19)
+    at Object.<anonymous> (/app/routes/profile.js:8:22)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)

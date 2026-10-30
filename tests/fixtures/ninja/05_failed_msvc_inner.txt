@@ -1,0 +1,3 @@
+FAILED: CMakeFiles/demo.dir/src/main.obj
+cmd.exe /C "cd /D . && cl.exe /nologo /c main.cpp /FoCMakeFiles/demo.dir/src/main.obj"
+main.cpp(12): error C2065: 'cout': undeclared identifier

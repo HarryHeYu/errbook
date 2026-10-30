@@ -37,6 +37,9 @@ class Extraction:
 
 _URL_RE = re.compile(r"\b(?:https?|ftp|file)://[^\s\"'`<>]+")
 
+# msbuild 的行前缀 "1>"、"12>"——同一错误 msbuild 输出带前缀、直接跑 cl 不带
+_MSBUILD_RE = re.compile(r"(?m)^\s*\d+>\s*")
+
 # Windows 盘符路径 / UNC 路径。冒号与括号不允许出现在路径体里，
 # 这样 "C:\x\main.c:5:2: error:" 会在正确的地方断开。
 _WIN_PATH_RE = re.compile(r"\b[A-Za-z]:[\\/][^\s\"'`<>|*?:()]+")
@@ -131,6 +134,7 @@ def normalize_text(text: str) -> str:
     """把一段错误文本归一化成稳定的单行消息骨架。"""
     s = text
 
+    s = _MSBUILD_RE.sub("", s)
     s = _URL_RE.sub(_url_sub, s)
     s = _WIN_PATH_RE.sub(_win_path_sub, s)
     s = _UNC_PATH_RE.sub(_win_path_sub, s)

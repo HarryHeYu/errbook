@@ -1,0 +1,2 @@
+SyntaxError: Unexpected identifier 'await'
+    at compileSourceScriptModule (node:internal/main/run_main_module:23:47)

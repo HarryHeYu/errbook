@@ -1,0 +1,1 @@
+ResourceExhaustedError (see above for traceback): OOM when allocating tensor with shape[64,512,768] and type float (op:MatMul) with input shapes [64,512,768] and [768,3072] on /job:localhost/replica:0/task:0/device:GPU:0 by allocator GPU_0_bfc

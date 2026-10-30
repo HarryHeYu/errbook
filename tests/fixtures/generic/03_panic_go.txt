@@ -1,0 +1,5 @@
+panic: runtime error: index out of range [5] with length 3
+
+goroutine 1 [running]:
+main.main()
+	/tmp/app/main.go:11 +0x25

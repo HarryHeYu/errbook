@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "D:\work\trainer.py", line 130, in <module>
+    main()
+  File "D:\work\model.py", line 7, in main
+    out = nn.Linear(9999, 1)
+NameError: name 'nn' is not defined

@@ -1,0 +1,11 @@
+=================================== FAILURES ===================================
+_________________________________ test_adder ___________________________________
+
+    def test_adder():
+>       assert add(1, 2) == 4
+E       AssertionError: assert 3 == 4
+E        +  where 3 = add(1, 2)
+
+test_calc.py:6: AssertionError
+=========================== short summary info ============================
+FAILED test_calc.py::test_adder - AssertionError: assert 3 == 4

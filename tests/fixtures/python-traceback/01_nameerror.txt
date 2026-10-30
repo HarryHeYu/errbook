@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "train.py", line 42, in <module>
+    model = build_model(cfg)
+  File "model.py", line 10, in build_model
+    return nn.Linear(16, 8)
+NameError: name 'nn' is not defined

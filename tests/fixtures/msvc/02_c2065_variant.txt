@@ -1,0 +1,1 @@
+1>D:\proj\demo\src\main.cpp(24,7): error C2065: 'cout': undeclared identifier

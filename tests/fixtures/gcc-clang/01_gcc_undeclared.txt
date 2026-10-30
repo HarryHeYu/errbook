@@ -1,0 +1,4 @@
+src/net.c: In function 'connect_peer':
+src/net.c:57:12: error: 'IPPROTO_SCTP' undeclared (first use in this function); did you mean 'IPPROTO_TCP'?
+   57 |     switch (proto) {
+      |            ^~~~~~~~~~~~
