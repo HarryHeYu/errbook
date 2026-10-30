@@ -93,6 +93,11 @@ def run(ctx: typer.Context) -> None:
             fg=typer.colors.CYAN,
             err=True,
         )
+        # 逐条列出 sig-id——solve 是灵魂步骤，入口不能断
+        for r in results:
+            mark = "+" if r["new"] else "="
+            times = "新增" if r["new"] else f"第 {r['count']} 次"
+            typer.echo(f"  {mark} sig {r['sig_id']} · {r['tool']} · {times}", err=True)
         blocks, _ = check_text(store, combined, project=project, extractions=extractions)
         if blocks:
             typer.echo(blocks, err=True)

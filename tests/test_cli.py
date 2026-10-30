@@ -32,11 +32,15 @@ def test_run_records_then_second_run_reminds(store_env):
     script = "raise ValueError('boom boom')"
     r1 = invoke("run", "--", sys.executable, "-c", script)
     assert r1.exit_code == 1
-    assert "已入库" in all_out(r1)
+    out1 = all_out(r1)
+    assert "已入库" in out1
+    assert re.search(r"\+ sig [0-9a-f]{12}", out1)  # sig-id 直接可取，solve 入口不断
     # 第二次撞同一个坑：count≥2，提醒出现
     r2 = invoke("run", "--", sys.executable, "-c", script)
     assert r2.exit_code == 1
-    assert "见过但没记过修法" in all_out(r2)
+    out2 = all_out(r2)
+    assert "见过但没记过修法" in out2
+    assert re.search(r"= sig [0-9a-f]{12}", out2)
 
 
 def test_add_solve_check_flow(store_env, tmp_path):
