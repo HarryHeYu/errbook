@@ -1,0 +1,17 @@
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# venv / 工具缓存（全部约束在仓库内）
+.venv/
+.pytest_cache/
+.pytest_tmp/
+.tmp/
+.deps/
+
+# errbook 本地试验用数据库
+*.errbook.db
+*.db

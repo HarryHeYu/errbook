@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "errbook"
+version = "0.1.0"
+description = "errbook · 构建错误错题本 — errors archived by stable signature, fixes travel with the error. 纯本地、零网络。"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "HarryHeYu" }]
+keywords = ["build", "error", "compile", "diagnostics", "cli", "agent", "mistake-notebook"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Debuggers",
+]
+dependencies = [
+    "typer>=0.9",
+    "rich>=13.0",
+]
+
+[project.scripts]
+errbook = "errbook.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/HarryHeYu/errbook"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/errbook"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# 让 pytest 的临时目录落在仓库内（.pytest_tmp），不往系统 TEMP 写东西
+addopts = "--basetemp=.pytest_tmp"

@@ -1,0 +1,119 @@
+import re
+import sys
+
+from errbook.cli import app
+from errbook.extract import extract_all
+
+from .conftest import all_out
+from .samples import CMAKE_ERR
+
+runner_target = app
+
+
+def invoke(*args, **kw):
+    from typer.testing import CliRunner
+
+    return CliRunner().invoke(app, list(args), **kw)
+
+
+def test_version():
+    r = invoke("--version")
+    assert r.exit_code == 0
+    assert "0.1.0" in r.output
+
+
+def test_run_passthrough_exit_code(store_env):
+    r = invoke("run", "--", sys.executable, "-c", "print('hello'); raise SystemExit(7)")
+    assert r.exit_code == 7
+    assert "hello" in all_out(r)
+
+
+def test_run_records_then_second_run_reminds(store_env):
+    script = "raise ValueError('boom boom')"
+    r1 = invoke("run", "--", sys.executable, "-c", script)
+    assert r1.exit_code == 1
+    assert "已入库" in all_out(r1)
+    # 第二次撞同一个坑：count≥2，提醒出现
+    r2 = invoke("run", "--", sys.executable, "-c", script)
+    assert r2.exit_code == 1
+    assert "见过但没记过修法" in all_out(r2)
+
+
+def test_add_solve_check_flow(store_env, tmp_path):
+    log = tmp_path / "err.log"
+    log.write_text(CMAKE_ERR, encoding="utf-8")
+
+    r1 = invoke("add", "--file", str(log))
+    assert r1.exit_code == 0
+    m = re.search(r"sig ([0-9a-f]{12})", all_out(r1))
+    assert m, all_out(r1)
+    sig = m.group(1)
+
+    r2 = invoke("solve", sig, "装 GTest 并在 CMakeLists 加 find_package(GTest REQUIRED)")
+    assert r2.exit_code == 0
+    assert "已记录修法" in all_out(r2)
+
+    r3 = invoke("check", "--file", str(log))
+    assert r3.exit_code == 0  # check 恒为 0
+    out = all_out(r3)
+    assert "这错你修过" in out
+    assert "装 GTest" in out
+    assert "CMake Error" in out  # 原文摘录并排展示
+
+    # 未命中的日志也安静通过，退出码 0
+    other = tmp_path / "ok.log"
+    other.write_text("all good\n", encoding="utf-8")
+    r4 = invoke("check", "--file", str(other))
+    assert r4.exit_code == 0
+
+
+def test_add_stdin(store_env):
+    r = invoke("add", input="someprog: error: disk full\n")
+    assert r.exit_code == 0
+    assert "已入库 1 条错误" in all_out(r)
+
+
+def test_add_benign_text_not_recorded(store_env):
+    r = invoke("add", input="everything fine\n")
+    assert r.exit_code == 0
+    assert "未识别到错误特征" in all_out(r)
+
+
+def test_search_and_show(store_env, tmp_path):
+    log = tmp_path / "err.log"
+    log.write_text(CMAKE_ERR, encoding="utf-8")
+    invoke("add", "--file", str(log))
+
+    r1 = invoke("search", "GTest")
+    assert r1.exit_code == 0
+    assert "sig " in all_out(r1)
+
+    sig = re.search(r"sig ([0-9a-f]{12})", all_out(r1)).group(1)
+    r2 = invoke("show", sig[:8])
+    assert r2.exit_code == 0
+    assert "归一化签名" in all_out(r2)
+    assert "CMake Error" in all_out(r2)
+
+
+def test_solve_prefix_ambiguous(store_env, tmp_path):
+    # 直接造两个同前缀的签名，验证 CLI 对模糊前缀的处理
+    from errbook.store import Store
+
+    store = Store(tmp_path / "cli.db")
+    now = "2026-10-31T00:00:00+08:00"
+    for i, (sid, tool) in enumerate([("aaa111", "cmake"), ("aaa222", "msvc")]):
+        store.con.execute(
+            "INSERT OR REPLACE INTO signatures(id, tool, norm_hash, normalized,"
+            " fuzzy, count, first_seen, last_seen) VALUES(?,?,?,?,0,1,?,?)",
+            (sid, tool, f"hash{i}", f"sig {i}", now, now),
+        )
+    store.con.commit()
+    store.close()
+    r = invoke("solve", "aaa", "nope")
+    assert r.exit_code == 2
+    assert "aaa111" in all_out(r) and "aaa222" in all_out(r)
+
+
+def test_check_no_stdin_quiet(store_env):
+    r = invoke("check")
+    assert r.exit_code == 0
