@@ -10,16 +10,24 @@ from typing import Optional
 import typer
 
 from . import __version__
-from .capture import decode_output, run_wrapped
+from .capture import CommandNotFound, decode_output, run_wrapped
 from .check import check_text
 from .extract import extract_all
 from .project import detect_project, git_head
-from .store import AmbiguousSig, SigNotFound, Store, fmt_ts
+from .signature import Extraction, normalize_text
+from .store import AmbiguousSig, SigNotFound, Store, default_db_path, fmt_ts
 
-# Windows 控制台编码兜底：打印别的终端贴进来的字符不炸
+# Windows 控制台编码兜底：打印别的终端贴进来的字符不炸；
+# 管道场景（非 tty）统一 UTF-8，方便 agent / CI 解析
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(errors="replace")
+        try:
+            if not _stream.isatty():
+                _stream.reconfigure(encoding="utf-8", errors="replace")
+            else:
+                _stream.reconfigure(errors="replace")
+        except (ValueError, OSError):
+            pass
 
 app = typer.Typer(
     help="errbook · 构建错误错题本 —— 错误按签名归档，修法跟着错误走。",
@@ -64,6 +72,13 @@ def _resolve_sig(store: Store, prefix: str):
         raise typer.Exit(2)
 
 
+def _open_readonly_store():
+    """查询型命令不建库：库不存在就当空的（只读容器 / 首次使用都安静）。"""
+    if not default_db_path().exists():
+        return None
+    return Store()
+
+
 @app.command("run", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def run(ctx: typer.Context) -> None:
     """包装任意构建/运行命令：透传原始输出与退出码，捕获的错误自动入库。
@@ -79,28 +94,39 @@ def run(ctx: typer.Context) -> None:
     if not cmd:
         raise typer.BadParameter("用法：errbook run -- <command> [args...]")
 
-    rc, out, err = run_wrapped(cmd)
+    try:
+        rc, out, err = run_wrapped(cmd)
+    except CommandNotFound as e:
+        typer.secho(f"errbook: 找不到命令：{e.cmd}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(127)
+
     combined = out + "\n" + err
     extractions = extract_all(combined) if combined.strip() else []
-    if extractions:
-        store = Store()
-        project = detect_project()
-        results = store.record(extractions, project=project)
-        new_count = sum(1 for r in results if r["new"])
-        typer.secho(
-            f"errbook: 已入库 {len(results)} 条错误"
-            f"（新增 {new_count} · 已知 {len(results) - new_count}）",
-            fg=typer.colors.CYAN,
-            err=True,
-        )
-        # 逐条列出 sig-id——solve 是灵魂步骤，入口不能断
-        for r in results:
-            mark = "+" if r["new"] else "="
-            times = "新增" if r["new"] else f"第 {r['count']} 次"
-            typer.echo(f"  {mark} sig {r['sig_id']} · {r['tool']} · {times}", err=True)
-        blocks, _ = check_text(store, combined, project=project, extractions=extractions)
-        if blocks:
-            typer.echo(blocks, err=True)
+    try:
+        if extractions:
+            store = Store()
+            project = detect_project()
+            results = store.record(extractions, project=project)
+            new_count = sum(1 for r in results if r["new"])
+            typer.secho(
+                f"errbook: 已入库 {len(results)} 条错误"
+                f"（新增 {new_count} · 已知 {len(results) - new_count}）",
+                fg=typer.colors.CYAN,
+                err=True,
+            )
+            # 逐条列出 sig-id——solve 是灵魂步骤，入口不能断
+            for r in results:
+                mark = "+" if r["new"] else "="
+                times = "新增" if r["new"] else f"第 {r['count']} 次"
+                typer.echo(f"  {mark} sig {r['sig_id']} · {r['tool']} · {times}", err=True)
+            blocks, _ = check_text(store, combined, project=project, extractions=extractions)
+            if blocks:
+                typer.echo(blocks, err=True)
+    except BrokenPipeError:
+        pass
+    if rc < 0:
+        # POSIX 信号死亡：按 shell 惯例 128+N
+        rc = 128 - rc
     raise typer.Exit(rc)
 
 
@@ -108,8 +134,13 @@ def run(ctx: typer.Context) -> None:
 def add(
     text: Optional[str] = typer.Argument(None, help="错误文本；也可用 --file 或管道 stdin。"),
     file: Optional[Path] = typer.Option(None, "--file", "-f", help="从文件读取错误文本（自动探测编码）。"),
+    raw: bool = typer.Option(
+        False, "--raw", help="整段按 fuzzy 签名入库，跳过提取器（远程 CI 日志等认不出格式的场景）。"
+    ),
 ) -> None:
     """手动/agent 粘贴一段错误文本入库（错误来自无法包装的场景，如远程 CI 日志）。"""
+    if file is not None and text is not None:
+        raise typer.BadParameter("--file 和位置文本只能给一个。")
     if file is not None:
         if not file.exists():
             raise typer.BadParameter(f"文件不存在：{file}")
@@ -124,10 +155,18 @@ def add(
     if not body.strip():
         raise typer.BadParameter("输入为空。")
 
-    extractions = extract_all(body)
-    if not extractions:
-        typer.echo("errbook: 未识别到错误特征，未入库（贴错误本身比贴整段日志更准）。")
-        return
+    if raw:
+        # 诚实兜底：不假装认识格式，整段存原文标 fuzzy
+        extractions = [
+            Extraction(tool="generic", excerpt=body, normalized=normalize_text(body), fuzzy=True)
+        ]
+    else:
+        extractions = extract_all(body)
+        if not extractions:
+            typer.echo(
+                "errbook: 未识别到错误特征，未入库（确定要存就用 --raw，或贴错误本身比贴整段日志更准）。"
+            )
+            return
 
     store = Store()
     project = detect_project()
@@ -163,8 +202,14 @@ def check(
     file: Optional[Path] = typer.Option(None, "--file", "-f", help="读文件而不是 stdin。"),
     all_: bool = typer.Option(False, "--all", help="跨项目匹配。"),
     fuzzy: bool = typer.Option(False, "--fuzzy", help="包含 fuzzy 签名（默认不出——不假装匹配得准）。"),
+    raw: bool = typer.Option(False, "--raw", help="整段当一个 fuzzy 签名比对（配合 add --raw 入库的远程日志）。"),
 ) -> None:
-    """读一段错误文本（stdin 或 --file），命中历史时输出提醒块。退出码恒为 0。"""
+    """读一段错误文本（stdin 或 --file），命中历史时输出提醒块。
+
+    退出码恒为 0——它是信息附加器，不是质量门禁；唯一例外是 --file
+    指向不存在的文件（用法错误，返回 2）。提醒条件：有 solve 记录，
+    或同一签名出现 ≥2 次但还没修法。
+    """
     if file is not None:
         if not file.exists():
             typer.secho(f"errbook: 文件不存在：{file}", fg=typer.colors.RED, err=True)
@@ -175,11 +220,23 @@ def check(
     else:
         raise typer.Exit(0)  # 没输入也安静通过——信息附加器，绝不挡路
 
+    if raw:
+        # 与 add --raw 对称：整段当一个 fuzzy 签名比对（raw 自带 fuzzy 含义）
+        extractions = [
+            Extraction(tool="generic", excerpt=body, normalized=normalize_text(body), fuzzy=True)
+        ]
+    else:
+        extractions = extract_all(body)
+
+    store = _open_readonly_store()
+    if store is None:
+        raise typer.Exit(0)  # 还没有错题本，自然无历史可提
     blocks, _ = check_text(
-        Store(),
+        store,
         body,
         project=None if all_ else detect_project(),
-        include_fuzzy=fuzzy,
+        include_fuzzy=fuzzy or raw,
+        extractions=extractions,
     )
     if blocks:
         typer.echo(blocks)
@@ -193,7 +250,8 @@ def search(
     limit: int = typer.Option(20, "--limit", "-n", min=1, help="最多返回几条。"),
 ) -> None:
     """FTS 全文搜索错误摘录与修法。"""
-    rows = Store().search(query, project=None if all_ else detect_project(), limit=limit)
+    store = _open_readonly_store()
+    rows = store.search(query, project=None if all_ else detect_project(), limit=limit) if store else []
     if not rows:
         typer.echo("errbook: 没搜到。换个更短的关键词试试。")
         return
@@ -242,7 +300,8 @@ def top(
     limit: int = typer.Option(10, "--limit", "-n", min=1, help="最多几条。"),
 ) -> None:
     """高频错误排行（默认当前项目）。✓ = 已有修法，· = 还没有。"""
-    rows = Store().top(project=None if all_ else detect_project(), limit=limit)
+    store = _open_readonly_store()
+    rows = store.top(project=None if all_ else detect_project(), limit=limit) if store else []
     if not rows:
         typer.echo("errbook: 错题本还是空的。")
         return

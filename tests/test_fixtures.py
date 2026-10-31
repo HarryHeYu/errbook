@@ -1,5 +1,3 @@
-"""归一化测试矩阵（任务书 M2）：每个提取器 ≥5 个真实样本 + 跨版本/跨环境变体。"""
-
 import json
 from pathlib import Path
 
@@ -35,6 +33,9 @@ def test_sample(sample):
         assert any(e.fuzzy == sample["fuzzy"] for e in matching), _describe(exts)
     for absent in sample.get("absent_tools", []):
         assert all(e.tool != absent for e in exts), f"{absent} 不该认领：{_describe(exts)}"
+    if "exact_tools" in sample:
+        got = sorted(e.tool for e in exts)
+        assert got == sorted(sample["exact_tools"]), _describe(exts)
 
 
 @pytest.mark.parametrize(

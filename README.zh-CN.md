@@ -1,5 +1,7 @@
 # errbook · 构建错误错题本
 
+[![CI](https://github.com/HarryHeYu/errbook/actions/workflows/ci.yml/badge.svg)](https://github.com/HarryHeYu/errbook/actions/workflows/ci.yml)
+
 > 给构建错误建一本带记忆的错题本——错误按签名归档、修复方法跟着错误走，
 > 同一个坑第二次出现时第一句话告诉你"上次怎么好的"。
 
@@ -31,10 +33,16 @@
 
 ## 安装
 
-需要 Python 3.9+。
+需要 Python 3.9+（Windows 官方 CPython 3.9/3.10 没有 SQLite FTS5 也能用——
+检索自动退化为 LIKE）。
+
+尚未发布到 PyPI，先从源码安装：
 
 ```bash
-pip install errbook        # 或 pipx install errbook / uv tool install errbook
+git clone https://github.com/HarryHeYu/errbook
+cd errbook
+pip install .
+# 或：pipx install .
 ```
 
 ## 快速上手
@@ -64,6 +72,7 @@ errbook: 已记录修法（git:1a2b3c4） —— sig 93d867068627 · cmake
 $ errbook run -- cmake -S . -B build
 CMake Error at ...
 errbook: 已入库 1 条错误（新增 0 · 已知 1）
+  = sig 93d867068627 · cmake · 第 2 次
 ━━━━━━ errbook · 这错你修过 ━━━━━━
 sig 93d867068627 · cmake · 历史出现 2 次（首次 2026-10-31 01:22）
 上次怎么好的：
@@ -73,11 +82,17 @@ sig 93d867068627 · cmake · 历史出现 2 次（首次 2026-10-31 01:22）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-错误来自包装不了的场景（比如远程 CI 日志）？直接喂进去：
+提醒条件：签名**有 solve 记录**，或**出现 ≥2 次还没修法**。errbook 自己的
+提示只写 stderr 且在子进程输出之后——stdout 永远字节级干净。
+
+错误来自包装不了的场景（比如远程 CI 日志）？直接喂进去——格式太怪
+提取器认不出就用 `--raw`：
 
 ```bash
-errbook add --file ci-log.txt        # 或 cat ci-log.txt | errbook add
-errbook check --file ci-log.txt      # 查历史，退出码恒为 0
+errbook add --file ci-log.txt          # 或 cat ci-log.txt | errbook add
+errbook add --raw --file ci-log.txt    # 整段存成一个 fuzzy 签名，不做解析
+errbook check --file ci-log.txt        # 查历史，退出码恒为 0
+errbook check --raw --file ci-log.txt  # 连 raw 签名一起比对
 ```
 
 ## 命令一览
@@ -85,15 +100,19 @@ errbook check --file ci-log.txt      # 查历史，退出码恒为 0
 | 命令 | 用途 |
 |---|---|
 | `errbook run -- <cmd>` | 包装构建命令：透传 + 捕获入库 + 命中提醒。安全的默认用法。 |
-| `errbook check [--file <log>]` | 拿一段错误文本查历史。退出码恒为 0——信息附加器，不是门禁。 |
+| `errbook check [--file <log>]` | 拿一段错误文本查历史。有 solve、或出现 ≥2 次没修法的签名才会提醒。退出码恒为 0（唯一例外：`--file` 不存在时返回 2）——信息附加器，不是门禁。 |
 | `errbook solve <sig-id> "<怎么好的>"` | 记录修法（在仓库内自动附记 git HEAD）。多次 solve 追加成列表（不同根因）。 |
-| `errbook add [--file <log>]` | 手动/agent 粘贴一段错误文本入库。 |
+| `errbook add [--file <log>] [--raw]` | 手动/agent 粘贴一段错误文本入库。`--raw` 整段存成一个 fuzzy 签名，不做解析。 |
 | `errbook search <关键词>` | FTS 全文搜错误与修法（中文子串可以）。 |
 | `errbook show <sig-id>` | 看完整档案：归一化签名、修法列表、出现记录。 |
 | `errbook top [--all]` | 高频错误排行（默认当前项目）。 |
 | `errbook forget <sig-id>` | 删掉某个签名（连同修法与出现记录）。错入库也要能出库。 |
 
 签名 ID 支持只写前缀；前缀有歧义时会列出候选并拒绝执行。
+只读命令（`check`/`search`/`top`）不建库——还没有错题本时安静返回。
+
+**项目归属**：一个项目 = 一个 git 仓库（取 origin 的仓库名），仓库内所有
+子目录同属该项目；不在仓库里就用目录名。查询默认当前项目，`--all` 跨项目。
 
 ## 签名是怎么工作的
 
@@ -115,9 +134,9 @@ errbook check --file ci-log.txt      # 查历史，退出码恒为 0
 
 ## 存储与隐私
 
-- SQLite 单文件（stdlib `sqlite3` + FTS5，运行时零第三方依赖，
-  CLI 体验仅用 `typer`/`rich`）。表：`signatures` / `occurrences` /
-  `fixes` / `projects`。
+- SQLite 单文件（stdlib `sqlite3`；FTS5 全文检索，环境没有 FTS5 时自动
+  退化为 LIKE）。除 CLI 框架（`typer`/`rich`）外零运行时第三方依赖。
+  表：`signatures` / `occurrences` / `fixes` / `projects`。
 - 默认位置 `~/.errbook/errbook.db`，环境变量 `ERRBOOK_DB` 可覆盖。
 - 摘录入库前先截断（首尾各 20 行）并**自动脱敏**：已知前缀的
   token/密钥（`sk-…`、`ghp_…`、`AKIA…`、JWT、`Bearer …`）、
@@ -142,8 +161,9 @@ python -m venv .venv
 .venv/Scripts/python -m pytest
 ```
 
-测试矩阵自带 48 个真实样本（`tests/fixtures/`）——每个提取器至少 5 个，
-外加跨环境变体组，必须折叠到同一签名。
+测试矩阵自带 54 个真实样本（`tests/fixtures/`）——每个提取器至少 5 个，
+外加跨环境变体组（必须折叠到同一签名）和负样本（warning、无害输出，
+必须保持沉默）。
 
 ## 边界（v0.1 明确不做）
 

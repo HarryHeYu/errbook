@@ -22,6 +22,10 @@ _ERRISH_RE = re.compile(
     r"|PANIC|Panic|panic|Exception)\b:?"
 )
 _MAKE_RE = re.compile(r"^\s*make(?:\[\d+\])?:\s*\*\*\*")
+# 裸异常行（XxxError: / XxxException:，无 traceback 头、无 at 栈）。
+# python-traceback 已在前面认领了带头的块，node 认领了带 at 栈的；
+# 走到这里还没人认领的裸异常行归 generic（java/python/各类运行时通用）。
+_EXC_LINE_RE = re.compile(r"^[A-Za-z_][\w.]*(?:Error|Exception):\s*\S")
 
 
 def scan(lines: Sequence[str], claimed: Set[int]) -> Iterable[Claim]:
@@ -30,7 +34,11 @@ def scan(lines: Sequence[str], claimed: Set[int]) -> Iterable[Claim]:
         if i in claimed:
             i += 1
             continue
-        if _ERRISH_RE.match(lines[i]) or _MAKE_RE.match(lines[i]):
+        if (
+            _ERRISH_RE.match(lines[i])
+            or _MAKE_RE.match(lines[i])
+            or _EXC_LINE_RE.match(lines[i])
+        ):
             yield Claim(i, i + 1, "generic", normalize_text(lines[i]))
             i += 1
             continue

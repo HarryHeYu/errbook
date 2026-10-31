@@ -1,13 +1,13 @@
+import os
+
+from errbook import __version__
 import re
 import sys
 
 from errbook.cli import app
-from errbook.extract import extract_all
 
 from .conftest import all_out
 from .samples import CMAKE_ERR
-
-runner_target = app
 
 
 def invoke(*args, **kw):
@@ -19,7 +19,7 @@ def invoke(*args, **kw):
 def test_version():
     r = invoke("--version")
     assert r.exit_code == 0
-    assert "0.1.0" in r.output
+    assert __version__ in r.output
 
 
 def test_run_passthrough_exit_code(store_env):
@@ -145,3 +145,68 @@ def test_top_and_forget(store_env, tmp_path):
     assert "错题本还是空的" in all_out(r4)
     r5 = invoke("search", "GTest")
     assert "没搜到" in all_out(r5)
+
+
+def test_run_missing_command_exit_127(store_env):
+    r = invoke("run", "--", "definitely-not-a-command-xyz-987")
+    assert r.exit_code == 127
+    assert "找不到命令" in all_out(r)
+    assert "Traceback" not in all_out(r)
+
+
+def test_run_no_command_usage_error(store_env):
+    r = invoke("run", "--")
+    assert r.exit_code == 2
+
+
+def test_check_does_not_create_db(store_env):
+    db = store_env / "cli.db"
+    r = invoke("check", input="someprog: error: disk full\n")
+    assert r.exit_code == 0
+    assert not db.exists()  # 查询型命令不建库
+
+
+def test_check_missing_file_exit_2(store_env):
+    r = invoke("check", "--file", store_env / "nope.log")
+    assert r.exit_code == 2
+
+
+def test_check_fuzzy_flag(store_env):
+    text = "REMOTE CI LOG line1\nsome exotic failure format 42\n"
+    invoke("add", "--raw", input=text)
+    invoke("add", "--raw", input=text)  # 出现 2 次，满足提醒条件
+    r1 = invoke("check", input=text)
+    assert r1.exit_code == 0
+    assert "sig" not in all_out(r1)  # 默认提取器认不出 raw 文本，也不出 fuzzy
+    r2 = invoke("check", "--raw", input=text)  # raw 自带 fuzzy 含义
+    assert r2.exit_code == 0
+    assert "见过但没记过修法" in all_out(r2)
+
+
+def test_add_raw_flag(store_env):
+    body = "REMOTE CI LOG line1\nsome exotic failure format 42\n"
+    r = invoke("add", "--raw", input=body)
+    assert r.exit_code == 0
+    assert "fuzzy" in all_out(r)
+    # --raw 后同一文本可被命中（fuzzy 需要 --fuzzy 才显示，但入库成功）
+    r2 = invoke("search", "exotic")
+    assert "sig " in all_out(r2)
+
+
+def test_add_conflicting_inputs(store_env, tmp_path):
+    log = tmp_path / "a.log"
+    log.write_text("x: error: y\n", encoding="utf-8")
+    r = invoke("add", "inline text", "--file", str(log))
+    assert r.exit_code == 2
+
+
+def test_python_m_entry(store_env):
+    import subprocess as sp
+
+    env = {**os.environ, "ERRBOOK_DB": str(store_env / "cli.db")}
+    out = sp.run(
+        [sys.executable, "-m", "errbook", "--version"],
+        capture_output=True, text=True, env=env,
+    )
+    assert out.returncode == 0
+    assert __version__ in out.stdout

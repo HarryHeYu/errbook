@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Iterable, Optional, Sequence, Set
 
+from ..redact import redact
 from ..signature import Extraction, normalize_text
 
 # 单次采集最多入库多少条错误，防日志爆炸
@@ -78,18 +79,23 @@ def extract_all(text: str) -> list[Extraction]:
         excerpt = "\n".join(lines[c.start : c.end]).strip("\n")
         if not excerpt.strip():
             continue
+        # 脱敏在源头单点完成：入库、查询、展示共用同一份文本，
+        # 保证 record/find_hits 的签名输入必然一致（记了就能查中）。
+        excerpt = redact(excerpt)
         if c.normalized is None:
             out.append(
                 Extraction(
                     tool=c.tool,
                     excerpt=excerpt,
-                    normalized=normalize_text(excerpt),
+                    normalized=redact(normalize_text(excerpt)),
                     fuzzy=True,
                 )
             )
         else:
             out.append(
-                Extraction(tool=c.tool, excerpt=excerpt, normalized=c.normalized, fuzzy=c.fuzzy)
+                Extraction(
+                    tool=c.tool, excerpt=excerpt, normalized=redact(c.normalized), fuzzy=c.fuzzy
+                )
             )
         if len(out) >= MAX_ERRORS_PER_TEXT:
             break

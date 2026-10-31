@@ -1,5 +1,7 @@
 # errbook · A mistake notebook for build errors
 
+[![CI](https://github.com/HarryHeYu/errbook/actions/workflows/ci.yml/badge.svg)](https://github.com/HarryHeYu/errbook/actions/workflows/ci.yml)
+
 > Give your build errors a memory. Errors are archived by stable signature,
 > fixes travel with the error — and the next time you hit the same wall,
 > the first line tells you *how you got over it last time*.
@@ -37,10 +39,16 @@ hit → "you fixed this on Aug 12: <method>"  ← solve record
 
 ## Install
 
-Requires Python 3.9+.
+Requires Python 3.9+ (on Windows, official CPython 3.9/3.10 without SQLite FTS5
+is supported too — search falls back to `LIKE`).
+
+Not yet published to PyPI — install from source for now:
 
 ```bash
-pip install errbook        # or: pipx install errbook / uv tool install errbook
+git clone https://github.com/HarryHeYu/errbook
+cd errbook
+pip install .
+# or: pipx install .
 ```
 
 ## Quickstart
@@ -72,6 +80,7 @@ with different line numbers and values — errbook remembers:
 $ errbook run -- cmake -S . -B build
 CMake Error at ...
 errbook: 已入库 1 条错误（新增 0 · 已知 1）
+  = sig 93d867068627 · cmake · 第 2 次
 ━━━━━━ errbook · 这错你修过 ━━━━━━
 sig 93d867068627 · cmake · 历史出现 2 次（首次 2026-10-31 01:22）
 上次怎么好的：
@@ -81,11 +90,18 @@ sig 93d867068627 · cmake · 历史出现 2 次（首次 2026-10-31 01:22）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Got an error from somewhere unwrappable (a remote CI log)? Paste it in:
+Reminders appear when a signature **has a recorded fix**, or has been **seen
+twice or more without one**. errbook's own notices always go to *stderr*
+after the child's output — stdout stays byte-for-byte clean.
+
+Got an error from somewhere unwrappable (a remote CI log)? Paste it in —
+with `--raw` if the format is too exotic for the extractors:
 
 ```bash
-errbook add --file ci-log.txt        # or: cat ci-log.txt | errbook add
-errbook check --file ci-log.txt      # check history, exit code always 0
+errbook add --file ci-log.txt          # or: cat ci-log.txt | errbook add
+errbook add --raw --file ci-log.txt    # store as one fuzzy signature, no parsing
+errbook check --file ci-log.txt        # check history, exit code always 0
+errbook check --raw --file ci-log.txt  # match against raw signatures too
 ```
 
 ## Commands
@@ -93,16 +109,22 @@ errbook check --file ci-log.txt      # check history, exit code always 0
 | Command | Purpose |
 |---|---|
 | `errbook run -- <cmd>` | Wrap a build command: passthrough + capture + reminders. The safe default. |
-| `errbook check [--file <log>]` | Check a piece of error text against history. Exit code is always 0 — it's an information adder, not a gate. |
+| `errbook check [--file <log>]` | Check a piece of error text against history. Reminds on signatures with a fix, or seen ≥2 times without one. Exit code is always 0 (only `--file` pointing to a missing file returns 2) — it's an information adder, not a gate. |
 | `errbook solve <sig-id> "<how>"` | Record the fix (auto-attaches git HEAD when inside a repo). Multiple solves = multiple root causes. |
-| `errbook add [--file <log>]` | Manually paste an error text into the notebook. |
+| `errbook add [--file <log>] [--raw]` | Manually paste an error text into the notebook. `--raw` stores the whole text as one fuzzy signature without parsing. |
 | `errbook search <query>` | FTS full-text search over excerpts and fixes (CJK substrings work). |
 | `errbook show <sig-id>` | Full dossier: normalized signature, fixes, occurrences. |
 | `errbook top [--all]` | High-frequency error ranking (current project by default). |
 | `errbook forget <sig-id>` | Delete a signature with its fixes and occurrences. |
 
 Sig IDs can be written as prefixes; `errbook` complains loudly if a prefix
-is ambiguous.
+is ambiguous. Read-only commands (`check`/`search`/`top`) never create the
+database — with no notebook yet they simply stay quiet.
+
+**Projects**: a project is a git repository (named after its `origin`
+remote); every subdirectory inside it shares the same project. Outside a
+repo, the directory name is used. Queries default to the current project;
+`--all` spans projects.
 
 ## How signatures work
 
@@ -129,8 +151,9 @@ is ambiguous.
 
 ## Storage & privacy
 
-- Single SQLite file (stdlib `sqlite3` + FTS5, zero third-party runtime
-  deps besides `typer`/`rich` for the CLI). Tables: `signatures`,
+- Single SQLite file (stdlib `sqlite3`; FTS5 full-text search with graceful
+  `LIKE` fallback when FTS5 is unavailable). Zero runtime dependencies
+  beyond the CLI framework (`typer`/`rich`). Tables: `signatures`,
   `occurrences`, `fixes`, `projects`.
 - Location: `~/.errbook/errbook.db` by default; set `ERRBOOK_DB` to override.
 - Excerpts are truncated (head/tail 20 lines) and **auto-redacted** before
@@ -158,9 +181,10 @@ python -m venv .venv
 .venv/Scripts/python -m pytest
 ```
 
-The test matrix ships 48 real-world samples under `tests/fixtures/` —
+The test matrix ships 54 real-world samples under `tests/fixtures/` —
 at least 5 per extractor plus cross-environment variant groups that must
-collapse to the same signature.
+collapse to the same signature, and negative samples (warnings, benign
+output) that must stay out.
 
 ## Scope (v0.1 explicitly does NOT do)
 

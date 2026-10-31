@@ -14,18 +14,25 @@ def test_decode_utf8_bom():
 
 
 def test_decode_gbk():
-    if sys.platform != "win32":
-        pytest.skip("win32 only")
-    import ctypes
-
-    if ctypes.windll.kernel32.GetACP() != 936:
-        pytest.skip("ANSI codepage is not 936")
+    # cp936 是显式尝试（先于 mbcs），任何平台都能解 GBK 字节
     assert decode_output("构建失败：找不到文件".encode("gbk")) == "构建失败：找不到文件"
+
+
+def test_decode_utf16le_bom():
+    raw = "构建失败：link.exe failed".encode("utf-16")  # 带 LE BOM
+    assert decode_output(raw) == "构建失败：link.exe failed"
 
 
 def test_decode_never_raises():
     out = decode_output(b"\xff\xfe\x81")
     assert isinstance(out, str)
+
+
+def test_run_wrapped_missing_command():
+    from errbook.capture import CommandNotFound
+
+    with pytest.raises(CommandNotFound):
+        run_wrapped(["definitely-not-a-command-xyz-987"])
 
 
 def test_run_wrapped_passthrough_and_exit_code():

@@ -1,6 +1,6 @@
 {
   "samples": [
-    {"file": "python-traceback/01_nameerror.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
+    {"file": "python-traceback/01_nameerror.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1, "absent_tools": ["node"]},
     {"file": "python-traceback/02_nameerror_variant.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
     {"file": "python-traceback/03_keyerror_311.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
     {"file": "python-traceback/04_chain.txt", "tool": "python-traceback", "fuzzy": false, "min_errors": 1},
@@ -59,7 +59,9 @@
     {"file": "generic/03_panic_go.txt", "tool": "generic", "fuzzy": false, "min_errors": 1},
     {"file": "generic/04_repeat_noise.txt", "tool": "generic", "fuzzy": true, "min_errors": 1},
     {"file": "generic/05_prefix_ts.txt", "tool": "generic", "fuzzy": false, "min_errors": 1},
-    {"file": "generic/06_collect2_absorbed.txt", "tool": null, "min_errors": 0}
+    {"file": "generic/06_collect2_absorbed.txt", "tool": null, "min_errors": 0},
+    {"file": "generic/07_warnings_only.txt", "tool": null, "min_errors": 0},
+    {"file": "generic/08_bare_exception.txt", "tool": "generic", "fuzzy": false, "min_errors": 1}
   ],
   "same_signature_groups": [
     ["python-traceback/01_nameerror.txt", "python-traceback/02_nameerror_variant.txt"],

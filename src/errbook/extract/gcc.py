@@ -25,7 +25,11 @@ def scan(lines: Sequence[str], claimed: Set[int]) -> Iterable[Claim]:
     i, n = 0, len(lines)
     while i < n:
         m = _DIAG_RE.match(lines[i])
-        if m and m.group("sev") in ("fatal error", "error"):
+        if (
+            m
+            and m.group("sev") in ("fatal error", "error")
+            and re.search(r"[A-Za-z]", m.group("path"))
+        ):  # 纯数字 path 是 "12:34: error: ..." 这类时间前缀，不是诊断
             j = i + 1
             while j < n:
                 ln = lines[j]

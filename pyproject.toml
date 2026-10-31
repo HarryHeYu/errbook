@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "errbook"
-version = "0.1.0"
+version = "0.1.1"
 description = "errbook · 构建错误错题本 — errors archived by stable signature, fixes travel with the error. 纯本地、零网络。"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -17,11 +17,17 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Debuggers",
 ]
 dependencies = [
-    "typer>=0.9",
+    "typer>=0.9,<1",
     "rich>=13.0",
 ]
 

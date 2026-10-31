@@ -34,8 +34,15 @@ Traceback (most recent call last):
 RuntimeError: config missing
 """
     exts = extract_all(text)
-    assert len(exts) == 1
-    assert exts[0].normalized == "RuntimeError: config missing"
+    # 真正抛出的最后一段是 python-traceback 的签名；被跳过的首段
+    # （根因 ImportError）由 generic 兜底认领，也算一份有效记录
+    assert any(
+        e.tool == "python-traceback" and e.normalized == "RuntimeError: config missing"
+        for e in exts
+    ), [(e.tool, e.normalized) for e in exts]
+    assert any(
+        e.tool == "generic" and "ImportError" in e.normalized for e in exts
+    ), [(e.tool, e.normalized) for e in exts]
 
 
 def test_pytest_e_lines():

@@ -17,7 +17,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Sequence
 
-from .redact import redact
 from .signature import Extraction, signature_id
 from .trunc import truncate_excerpt
 
@@ -91,14 +90,20 @@ class Store:
         parent = self.path.parent
         if str(parent):
             parent.mkdir(parents=True, exist_ok=True)
-        self.con = sqlite3.connect(str(self.path))
+        self.con = sqlite3.connect(str(self.path), timeout=30.0)
         self.con.row_factory = sqlite3.Row
         self.con.execute("PRAGMA foreign_keys=ON")
+        try:
+            # WAL：单文件不变，读写并发友好（CI 多 job / agent 边跑边查）
+            self.con.execute("PRAGMA journal_mode=WAL")
+        except sqlite3.OperationalError:
+            pass
         self.con.executescript(SCHEMA)
         self.fts_tokenizer = self._ensure_fts()
 
-    def _ensure_fts(self) -> str:
-        """FTS5 全文索引；优先 trigram（支持中文子串），不行就退回 unicode61。"""
+    def _ensure_fts(self):
+        """FTS5 全文索引：trigram（支持中文子串）→ unicode61 → 无 FTS5 时
+        返回 None，检索退化为 LIKE（Windows 官方 CPython ≤3.10 不带 FTS5）。"""
         try:
             self.con.execute(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5("
@@ -106,11 +111,15 @@ class Store:
             )
             return "trigram"
         except sqlite3.OperationalError:
+            pass
+        try:
             self.con.execute(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5("
                 "sig_id UNINDEXED, kind UNINDEXED, body)"
             )
             return "unicode61"
+        except sqlite3.OperationalError:
+            return None
 
     def close(self) -> None:
         self.con.close()
@@ -125,8 +134,9 @@ class Store:
         results: list[dict] = []
         seen: set[str] = set()
         for it in items:
-            excerpt = truncate_excerpt(redact(it.excerpt))
-            normalized = redact(it.normalized)
+            # 脱敏已在 extract_all 源头完成；这里只做截断
+            excerpt = truncate_excerpt(it.excerpt)
+            normalized = it.normalized
             sig_id, norm_hash = signature_id(it.tool, normalized)
             if sig_id in seen:
                 continue
@@ -150,10 +160,17 @@ class Store:
                 "INSERT INTO occurrences(sig_id, project, excerpt, ts) VALUES(?,?,?,?)",
                 (sig_id, project, excerpt, now),
             )
-            self.con.execute(
-                "INSERT INTO fts(sig_id, kind, body) VALUES(?, 'excerpt', ?)",
-                (sig_id, excerpt),
-            )
+            # FTS 只收录每签名不重复的摘录，重复出现不再膨胀索引
+            if self.fts_tokenizer:
+                seen_body = self.con.execute(
+                    "SELECT 1 FROM fts WHERE sig_id = ? AND body = ? LIMIT 1",
+                    (sig_id, excerpt),
+                ).fetchone()
+                if not seen_body:
+                    self.con.execute(
+                        "INSERT INTO fts(sig_id, kind, body) VALUES(?, 'excerpt', ?)",
+                        (sig_id, excerpt),
+                    )
             self.con.execute(
                 "INSERT OR IGNORE INTO projects(name, created_at) VALUES(?,?)",
                 (project, now),
@@ -181,9 +198,10 @@ class Store:
             "INSERT INTO fixes(sig_id, note, git_head, ts) VALUES(?,?,?,?)",
             (sig_id, note, git_head, now),
         )
-        self.con.execute(
-            "INSERT INTO fts(sig_id, kind, body) VALUES(?, 'fix', ?)", (sig_id, note)
-        )
+        if self.fts_tokenizer:
+            self.con.execute(
+                "INSERT INTO fts(sig_id, kind, body) VALUES(?, 'fix', ?)", (sig_id, note)
+            )
         self.con.commit()
 
     def forget(self, prefix: str) -> sqlite3.Row:
@@ -217,7 +235,7 @@ class Store:
         ).fetchall()
 
     def resolve_sig(self, prefix: str) -> sqlite3.Row:
-        prefix = prefix.strip()
+        prefix = prefix.strip().replace("%", "").replace("_", "").strip()
         if not prefix:
             raise SigNotFound(prefix)
         rows = self.find_by_prefix(prefix)
@@ -244,8 +262,11 @@ class Store:
     ) -> list[dict]:
         """check / run 的命中查询。
 
-        提醒条件（任务书 2.3 + 风险表）：有 solve 记录，或出现 ≥2 次但还没修法；
-        fuzzy 签名默认不出。
+        分级匹配：唯一的一层是 tool+归一化哈希的精确签名，"更粗的一级"
+        由 fuzzy 签名承担（默认隐藏、人工确认），不做模糊哈希近似。
+
+        提醒条件（任务书 2.3 + 风险表）：有 solve 记录，或出现 ≥2 次但
+        还没修法（按项目范围计数）；fuzzy 签名默认不出。
         """
         hits: list[dict] = []
         for ext in extractions:
@@ -257,10 +278,17 @@ class Store:
                 continue
             if row["fuzzy"] and not include_fuzzy:
                 continue
-            if project is not None and not self._in_project(sig_id, project):
-                continue
+            if project is not None:
+                scope_count = self.con.execute(
+                    "SELECT COUNT(*) AS c FROM occurrences WHERE sig_id = ? AND project = ?",
+                    (sig_id, project),
+                ).fetchone()["c"]
+                if scope_count == 0:
+                    continue
+            else:
+                scope_count = row["count"]
             fixes = self.fixes_for(sig_id)
-            if not fixes and row["count"] < 2:
+            if not fixes and scope_count < 2:
                 continue
             hits.append({"sig": row, "fixes": fixes, "extraction": ext})
         return hits
@@ -268,33 +296,36 @@ class Store:
     def search(
         self, query: str, project: Optional[str] = None, limit: int = 20
     ) -> list[dict]:
-        """FTS 全文搜索错误摘录与修法；太短的词退回 LIKE。"""
+        """FTS 全文搜索错误摘录与修法；太短的词退回 LIKE。
+
+        FTS 命中保持相关性（rank）顺序；LIKE 兜底按出现次数排序。
+        """
         rows: list[dict] = []
-        q = self._fts_query(query)
-        if q:
-            try:
-                fts_rows = self.con.execute(
-                    "SELECT sig_id, snippet(fts, 2, '[', ']', '…', 10) AS snip"
-                    " FROM fts WHERE fts MATCH ? ORDER BY rank LIMIT ?",
-                    (q, limit * 8),
-                ).fetchall()
-            except sqlite3.OperationalError:
-                fts_rows = []
-            best: dict[str, str] = {}
-            for fr in fts_rows:
-                best.setdefault(fr["sig_id"], fr["snip"])
-            for sig_id, snip in best.items():
-                row = self.con.execute(
-                    "SELECT * FROM signatures WHERE id = ?", (sig_id,)
-                ).fetchone()
-                if row is None:
-                    continue
-                if project is not None and not self._in_project(sig_id, project):
-                    continue
-                rows.append({**dict(row), "snippet": snip})
+        if self.fts_tokenizer:
+            q = self._fts_query(query)
+            if q:
+                try:
+                    fts_rows = self.con.execute(
+                        "SELECT sig_id, snippet(fts, 2, '[', ']', '…', 10) AS snip"
+                        " FROM fts WHERE fts MATCH ? ORDER BY rank LIMIT ?",
+                        (q, limit * 8),
+                    ).fetchall()
+                except sqlite3.OperationalError:
+                    fts_rows = []
+                best: dict[str, str] = {}
+                for fr in fts_rows:
+                    best.setdefault(fr["sig_id"], fr["snip"])
+                for sig_id, snip in best.items():
+                    row = self.con.execute(
+                        "SELECT * FROM signatures WHERE id = ?", (sig_id,)
+                    ).fetchone()
+                    if row is None:
+                        continue
+                    if project is not None and not self._in_project(sig_id, project):
+                        continue
+                    rows.append({**dict(row), "snippet": snip})
         if not rows:
             rows = self._like_fallback(query, project, limit)
-        rows.sort(key=lambda r: r["count"], reverse=True)
         return rows[:limit]
 
     def _fts_query(self, query: str) -> str:
@@ -320,6 +351,12 @@ class Store:
                 "SELECT DISTINCT sig_id FROM occurrences WHERE excerpt LIKE ?", (pat,)
             )
         ]
+        sig_ids += [
+            r["sig_id"]
+            for r in self.con.execute(
+                "SELECT DISTINCT sig_id FROM fixes WHERE note LIKE ?", (pat,)
+            )
+        ]
         out: list[dict] = []
         for sig_id in dict.fromkeys(sig_ids):
             row = self.con.execute(
@@ -332,6 +369,7 @@ class Store:
             out.append({**dict(row), "snippet": ""})
             if len(out) >= limit:
                 break
+        out.sort(key=lambda r: r["count"], reverse=True)
         return out
 
     def top(self, project: Optional[str] = None, limit: int = 10) -> list[dict]:

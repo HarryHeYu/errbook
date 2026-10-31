@@ -16,6 +16,11 @@ from . import Claim
 
 _ERR_RE = re.compile(r"^error(?:\[(?P<code>E\d{4,5})\])?: (?P<msg>.+)$")
 _FOOTER_RE = re.compile(r"^error: could not compile .+? due to \d+ previous errors?$")
+# 已知 cargo/rustc 的措辞——命中即认为归一化有把握
+_KNOWN_MSG_RE = re.compile(
+    r"^(?:linking with|failed to|could not compile|cannot|expected|no such"
+    r"|there is no|aborting|mismatched|unresolved|invalid|not found)"
+)
 
 
 def scan(lines: Sequence[str], claimed: Set[int]) -> Iterable[Claim]:
@@ -41,7 +46,14 @@ def scan(lines: Sequence[str], claimed: Set[int]) -> Iterable[Claim]:
                     j += 1
                     continue
                 break
-            yield Claim(i, j, "cargo", normalize_text(lines[i]))
+            # 有 E 码、是 rustc 措辞、或后面跟着细节块（--> / 代码摘录）才算有把握；
+            # 来路不明的裸 "error: xxx" 如实标 fuzzy
+            confident = (
+                bool(m.group("code"))
+                or bool(_KNOWN_MSG_RE.match(m.group("msg")))
+                or j > i + 1
+            )
+            yield Claim(i, j, "cargo", normalize_text(lines[i]), fuzzy=not confident)
             i = max(j, i + 1)
             continue
         i += 1

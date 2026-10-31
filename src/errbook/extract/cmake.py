@@ -10,7 +10,8 @@ from . import Claim
 
 _AT_RE = re.compile(r"^CMake Error at .+?:\d+(?:,\d+)? \([^)]*\):")
 _PLAIN_RE = re.compile(
-    r"^CMake Error\b|^CMake Generate Step failed|^CMake Build Error"
+    # 真实措辞是 "CMake Generate step failed. Build files cannot be ..."
+    r"^CMake Error\b|^CMake Generate step failed\.?|^CMake Build Error"
 )
 
 

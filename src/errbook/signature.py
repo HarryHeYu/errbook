@@ -45,6 +45,11 @@ _MSBUILD_RE = re.compile(r"(?m)^\s*\d+>\s*")
 _WIN_PATH_RE = re.compile(r"\b[A-Za-z]:[\\/][^\s\"'`<>|*?:()]+")
 _UNC_PATH_RE = re.compile(r"\\\\[^\s\"'`<>|*?:()]+")
 
+# Windows 相对反斜杠路径（src\main.cpp，MSVC 无 /FC、ninja 相对输出时常见）。
+# 只在末段像文件名（带点、含字母）时才归一——避免吃掉日志里
+# 字符串字面量的 "a\nb" 这类转义序列。
+_REL_WIN_PATH_RE = re.compile(r"(?<![\w@+./\\])(?:[\w@+.-]+\\)+[\w@+.-]+(?![\w@+./\\])")
+
 # POSIX 路径（含 / 开头、./、../ 与多级相对路径）。必须有斜杠才算路径；
 # 纯数字段（如 "50/50"）在替换函数里拒绝，避免误伤分数。
 _POSIX_PATH_RE = re.compile(
@@ -60,6 +65,7 @@ _ISO_TS_RE = re.compile(
     r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b"
 )
 _BRACKET_TS_RE = re.compile(r"[\[(]\d{1,3}:\d{2}:\d{2}(?:[.,]\d+)?[\])]")
+_BARE_TIME_RE = re.compile(r"(?<![\d:])\b\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?\b")
 _DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 
 _PID_RE = re.compile(r"(?i)\b(?:pid|process id)\b[=: ]+\d+")
@@ -130,6 +136,13 @@ def _posix_path_sub(m: re.Match) -> str:
     return s.rsplit("/", 1)[-1] or "<path>"
 
 
+def _rel_win_path_sub(m: re.Match) -> str:
+    base = m.group(0).rsplit("\\", 1)[-1]
+    if "." not in base or not re.search(r"[A-Za-z_]", base):
+        return m.group(0)
+    return base
+
+
 def normalize_text(text: str) -> str:
     """把一段错误文本归一化成稳定的单行消息骨架。"""
     s = text
@@ -138,10 +151,12 @@ def normalize_text(text: str) -> str:
     s = _URL_RE.sub(_url_sub, s)
     s = _WIN_PATH_RE.sub(_win_path_sub, s)
     s = _UNC_PATH_RE.sub(_win_path_sub, s)
+    s = _REL_WIN_PATH_RE.sub(_rel_win_path_sub, s)
     s = _POSIX_PATH_RE.sub(_posix_path_sub, s)
 
     s = _ISO_TS_RE.sub("<ts>", s)
     s = _BRACKET_TS_RE.sub("[<ts>]", s)
+    s = _BARE_TIME_RE.sub("<ts>", s)
     s = _DATE_RE.sub("<date>", s)
     s = _PID_RE.sub("pid=<N>", s)
     s = _HEX_RE.sub("0xN", s)

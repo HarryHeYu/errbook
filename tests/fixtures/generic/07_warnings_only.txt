@@ -1,0 +1,5 @@
+warning: unused variable 'x' [-Wunused-variable]
+CMake Warning at CMakeLists.txt:3 (message):
+  some warning text for humans
+make: Nothing to be done for 'all'.
+2 errors generated.

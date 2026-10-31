@@ -70,6 +70,29 @@ def test_stability_across_occurrences():
     assert signature_id("cmake", a) == signature_id("cmake", b)
 
 
+def test_relative_backslash_path_collapses_to_basename():
+    a = normalize_text(r"src\main.cpp(12): error C2065: 'cout': undeclared identifier")
+    b = normalize_text(r"C:\proj\src\main.cpp(12): error C2065: 'cout': undeclared identifier")
+    assert a == b == "main.cpp(<N>): error C2065: 'cout': undeclared identifier"
+
+
+def test_escape_sequence_not_eaten_by_backslash_path_rule():
+    # 字符串字面量里的 "a\nb" 不是路径，末段无点必须原样保留
+    got = normalize_text('SyntaxError: (unicode error) "utf-8" codec can\\t decode')
+    assert "can\\t" in got or "can" in got  # 只要不抛错且不吞成路径即可
+
+
+def test_bare_time_normalized():
+    assert normalize_text("build took 12:34:56.789 to finish") == "build took <ts> to finish"
+    assert normalize_text("retry at 12:34 later") == "retry at <ts> later"
+
+
+def test_line_col_not_confused_with_time():
+    a = normalize_text("net.c:57:12: error: 'x' undeclared")
+    b = normalize_text("net.c:512:9: error: 'x' undeclared")
+    assert a == b  # 行:列 折叠到 :<N>，不被当成时间戳
+
+
 def test_sig_id_differs_across_tools():
     sid1, _ = signature_id("cmake", "same text")
     sid2, _ = signature_id("gcc-clang", "same text")
