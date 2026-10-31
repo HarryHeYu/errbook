@@ -171,6 +171,10 @@ Copy/symlink `skills/errbook/SKILL.md` into your agent's skill directory.
 The skill encodes the loop: **fail → check → read history → fix → solve**.
 `solve` is the soul step; the skill marks it mandatory.
 
+**ZCode users**: this repository doubles as a plugin marketplace —
+add the repo's `plugins/` directory via *Plugin Marketplace → Add*, then
+install the `errbook` skill plugin (see [plugins/README.md](plugins/README.md)).
+
 ## Development
 
 ```bash

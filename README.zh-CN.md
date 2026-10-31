@@ -151,6 +151,10 @@ errbook check --raw --file ci-log.txt  # 连 raw 签名一起比对
 循环：**失败 → check → 读历史 → 修 → solve**。solve 是灵魂步骤，
 skill 里标了强制。
 
+**ZCode 用户**：本仓库同时是一个插件市场——在"插件市场 → 添加"里
+粘贴本仓库的 `plugins/` 目录，即可安装 errbook 技能插件
+（见 [plugins/README.md](plugins/README.md)）。
+
 ## 开发
 
 ```bash

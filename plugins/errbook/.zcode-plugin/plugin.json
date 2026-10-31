@@ -1,0 +1,7 @@
+{
+  "name": "errbook",
+  "version": "0.1.1",
+  "description": "A mistake notebook for build errors: wrap builds with `errbook run -- <cmd>`, recall how the same error was fixed last time, record fixes with `errbook solve`. Pure local, zero network.",
+  "author": { "name": "HarryHeYu" },
+  "skills": "./skills"
+}

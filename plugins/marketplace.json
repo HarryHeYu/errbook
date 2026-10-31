@@ -1,0 +1,19 @@
+{
+  "name": "errbook-market",
+  "displayName": "errbook · Build Error Notebook",
+  "displayName_i18n": { "zh-CN": "errbook · 构建错误错题本" },
+  "plugins": [
+    {
+      "name": "errbook",
+      "source": "./errbook",
+      "version": "0.1.1",
+      "description": "Wrap builds with errbook run, recall how the same error was fixed last time, record fixes with solve. Pure local, zero network.",
+      "displayName": "errbook",
+      "displayName_i18n": { "zh-CN": "errbook 构建错误错题本" },
+      "description_i18n": {
+        "zh-CN": "构建错误错题本：错误按签名归档、修法跟着错误走，同一个坑第二次出现时第一句话告诉你上次怎么好的。纯本地零网络。"
+      },
+      "category": "developer-tools"
+    }
+  ]
+}
